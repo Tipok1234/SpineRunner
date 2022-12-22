@@ -11,6 +11,7 @@ namespace Assets.Scripts.Model
         [SerializeField] private AnimationReferenceAsset _runAnimation;
         [SerializeField] private AnimationReferenceAsset _idleAnimation;
         [SerializeField] private AnimationReferenceAsset _hoverBoardAnimation;
+        [SerializeField] private AnimationReferenceAsset _portalAnimation;
 
         [SerializeField] private EnemyModel _enemyModel;
 
@@ -21,17 +22,19 @@ namespace Assets.Scripts.Model
 
         private Vector2 input = Vector2.zero;
 
-        private string _codeAnimation;
-
         private Spine.Animation nextAnimation;
         private void Awake()
         {
-            nextAnimation = _idleAnimation;
+            nextAnimation = _portalAnimation;
+            _skeletonAnimation.state.SetEmptyAnimations(1.8f);
+            _skeletonAnimation.state.AddAnimation(0, nextAnimation, true, 0.1f);
         }
 
         private void Update()
         {
             input.x = Input.GetAxis(XAxis);
+
+            _enemyModel.MoveEnemy(gameObject.transform);
 
             var isSmooth = Physics.CheckSphere(transform.position, 0.5f, _smoothLayer);
             var isCorner = Physics.CheckSphere(transform.position, 0.5f, _cornerLayer);
@@ -42,10 +45,18 @@ namespace Assets.Scripts.Model
             {
                 nextAnim = _idleAnimation;
             }
-            else if(isSmooth && input.x != 0)
+            else if(isSmooth && /*input.x != 0*/ Input.GetKey(KeyCode.D))
             {
                 gameObject.transform.position += _speedMove * Time.deltaTime * Vector3.right;
                 nextAnim = _runAnimation;
+                transform.rotation = Quaternion.Euler(0, 0, 0);
+                _enemyModel.SetupColorMaterial();
+            }
+            else if(isSmooth && Input.GetKey(KeyCode.A))
+            {
+                gameObject.transform.position += _speedMove * Time.deltaTime * -Vector3.right;
+                nextAnim = _runAnimation;
+                transform.rotation = Quaternion.Euler(0, 180, 0);
                 _enemyModel.SetupColorMaterial();
             }
             else if(isCorner)
