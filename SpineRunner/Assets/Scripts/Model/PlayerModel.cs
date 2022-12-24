@@ -1,84 +1,90 @@
 using UnityEngine;
 using Spine.Unity;
+using System;
 
 namespace Assets.Scripts.Model
 {
     public class PlayerModel : MonoBehaviour
     {
+        public event Action<bool> ChangeHoverboardStateAction;
+
         [SerializeField] private float _speedMove;
         [SerializeField] private SkeletonAnimation _skeletonAnimation;
-
         [SerializeField] private AnimationReferenceAsset _runAnimation;
         [SerializeField] private AnimationReferenceAsset _idleAnimation;
         [SerializeField] private AnimationReferenceAsset _hoverBoardAnimation;
         [SerializeField] private AnimationReferenceAsset _portalAnimation;
 
-        [SerializeField] private EnemyModel _enemyModel;
-
-        [SerializeField] private LayerMask _smoothLayer;
-        [SerializeField] private LayerMask _cornerLayer;
-
-        private string XAxis = "Horizontal";
-
-        private Vector2 input = Vector2.zero;
-
         private Spine.Animation nextAnimation;
+
+        private bool _isHoverboard = false;
+        private bool _isIdle = false;
         private void Awake()
         {
             nextAnimation = _portalAnimation;
             _skeletonAnimation.state.SetEmptyAnimations(1.8f);
-            _skeletonAnimation.state.AddAnimation(0, nextAnimation, true, 0.1f);
+            _skeletonAnimation.state.AddAnimation(0, nextAnimation, false, 0.1f);
         }
 
         private void Update()
         {
-            input.x = Input.GetAxis(XAxis);
-
-            _enemyModel.MoveEnemy(gameObject.transform);
-
-            var isSmooth = Physics.CheckSphere(transform.position, 0.5f, _smoothLayer);
-            var isCorner = Physics.CheckSphere(transform.position, 0.5f, _cornerLayer);
 
             Spine.Animation nextAnim = null;
 
-            if(isSmooth && input.x == 0)
+            if (_isHoverboard)
             {
-                nextAnim = _idleAnimation;
+                gameObject.transform.position += _speedMove * Time.deltaTime * Vector3.right;
+                nextAnim = _hoverBoardAnimation;
             }
-            else if(isSmooth && /*input.x != 0*/ Input.GetKey(KeyCode.D))
+
+            if (Input.GetKey(KeyCode.D) && !_isHoverboard)
             {
                 gameObject.transform.position += _speedMove * Time.deltaTime * Vector3.right;
                 nextAnim = _runAnimation;
                 transform.rotation = Quaternion.Euler(0, 0, 0);
-                _enemyModel.SetupColorMaterial();
             }
-            else if(isSmooth && Input.GetKey(KeyCode.A))
+            else if (Input.GetKey(KeyCode.A) && !_isHoverboard)
             {
                 gameObject.transform.position += _speedMove * Time.deltaTime * -Vector3.right;
                 nextAnim = _runAnimation;
                 transform.rotation = Quaternion.Euler(0, 180, 0);
-                _enemyModel.SetupColorMaterial();
             }
-            else if(isCorner)
+            else if(_isIdle)
             {
-                gameObject.transform.position += _speedMove * Time.deltaTime * Vector3.right;
-                nextAnim = _hoverBoardAnimation;
-                _enemyModel.ChangeColorMaterial();
+                nextAnim = _idleAnimation;
             }
 
             if (nextAnim != null && nextAnim != nextAnimation)
             {
                 nextAnimation = nextAnim;
-
                 _skeletonAnimation.state.SetEmptyAnimations(0.1f);
                 _skeletonAnimation.state.AddAnimation(0, nextAnimation, true, 0.1f);
             }
         }
 
-        private void OnDrawGizmos()
+        private void OnTriggerEnter(Collider other)
         {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, 0.5f);
+            if (other.gameObject.tag == "Hoverboard")
+            {
+                _isIdle = false;
+                _isHoverboard = true;
+                ChangeHoverboardStateAction?.Invoke(_isHoverboard);
+            }
+            else
+            {
+                _isIdle = true;
+            }
+        }
+
+        private void OnTriggerExit(Collider other)
+        {
+            if (other.gameObject.tag == "Hoverboard")
+            {
+                _isHoverboard = false;
+                _isIdle = true;
+                ChangeHoverboardStateAction?.Invoke(_isHoverboard);
+                other.enabled = false;
+            }
         }
     }
 }
